@@ -249,6 +249,23 @@
         .api-link:hover {
             text-decoration: underline;
         }
+        
+        /* 摸鱼标签 */
+        .moyu-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-left: 8px;
+            animation: float 2s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
     </style>
 </head>
 <body>
@@ -266,7 +283,7 @@
                     输入代码提交日志
                 </div>
                 
-                <div class="tips">
+                <div class="tips" id="modeTip">
                     💡 提示：支持 Git/SVN 日志格式，直接粘贴即可
                 </div>
                 
@@ -276,12 +293,9 @@
                         <input type="password" id="apiKey" placeholder="如已配置 config.ini 可留空">
                     </div>
                     <div class="form-group">
-                        <label for="model">模型选择</label>
-                        <select id="model">
-                            <option value="qwen-turbo">qwen-turbo (快)</option>
-                            <option value="qwen-plus">qwen-plus (均衡)</option>
-                            <option value="qwen-max">qwen-max (强)</option>
-                        </select>
+                        <label for="model">模型名称</label>
+                        <input type="text" id="model" placeholder="例如: tongyi-xiaomi-analysis-pro">
+                        <small style="color: #888; font-size: 0.85rem;">常用: tongyi-xiaomi-analysis-pro, qwen-turbo, qwen-plus, qwen-max</small>
                     </div>
                 </div>
                 
@@ -348,7 +362,9 @@ i7j8k9l - refactor: 优化数据库查询性能
                 
                 if (hasConfigKey) {
                     keyStatus.innerHTML = '<span style="color: #4caf50;">(已配置)</span>';
-                    apiKeyInput.placeholder = '已配置，可直接生成或输入其他Key覆盖';
+                    apiKeyInput.placeholder = '已通过环境变量配置，可直接生成或输入其他Key覆盖';
+                } else {
+                    keyStatus.innerHTML = '<span style="color: #f44336;">(未配置)</span>';
                 }
                 
                 // 设置默认模型
@@ -363,7 +379,7 @@ i7j8k9l - refactor: 优化数据库查询性能
         async function generateReport() {
             const apiKey = document.getElementById('apiKey').value.trim();
             const commitLogs = document.getElementById('commitLogs').value.trim();
-            const model = document.getElementById('model').value;
+            const model = document.getElementById('model').value.trim();
             const errorMsg = document.getElementById('errorMessage');
             const loading = document.getElementById('loading');
             const output = document.getElementById('output');
@@ -372,16 +388,23 @@ i7j8k9l - refactor: 优化数据库查询性能
             
             // 验证
             if (!apiKey && !hasConfigKey) {
-                showError('请输入通义千问 API Key 或在 config.ini 中配置');
+                showError({
+                    message: '请输入通义千问 API Key',
+                    detail: 'API Key 用于调用通义千问大模型，可从阿里云 DashScope 控制台获取。也可通过环境变量 DASHSCOPE_API_KEY 配置。'
+                });
                 return;
             }
             if (!commitLogs) {
-                showError('请输入代码提交日志');
+                showError({
+                    message: '请输入代码提交日志',
+                    detail: '请从 Git/SVN 复制今日提交记录，粘贴到输入框中'
+                });
                 return;
             }
             
             // 清除错误
             errorMsg.classList.remove('show');
+            errorMsg.innerHTML = '';
             
             // 显示加载状态
             loading.classList.add('show');
@@ -407,14 +430,29 @@ i7j8k9l - refactor: 优化数据库查询性能
                 
                 if (data.success) {
                     currentReport = data.report;
+                    
+                    // 显示摸鱼标记（让用户自己发现这个彩蛋！）
+                    let title = '📤 生成结果';
+                    if (data.meta && data.meta.is_moyu) {
+                        title = '📤 生成结果 <span class="moyu-badge">🐟 摸鱼日报</span>';
+                    }
+                    document.querySelector('.card-title').innerHTML = '<span class="icon">📤</span> ' + title;
+                    
                     output.textContent = currentReport;
                     output.style.display = 'block';
                     actions.style.display = 'flex';
                 } else {
-                    showError(data.error || '生成失败');
+                    // 显示详细错误信息
+                    showError(data.error || {
+                        message: '生成失败',
+                        detail: '服务器返回未知错误，请稍后重试'
+                    });
                 }
             } catch (error) {
-                showError('请求失败：' + error.message);
+                showError({
+                    message: '网络请求失败',
+                    detail: `错误信息: ${error.message}\n请检查:\n1. 服务是否启动 (python app.py)\n2. 网络连接是否正常\n3. 防火墙是否拦截`
+                });
             } finally {
                 loading.classList.remove('show');
                 generateBtn.disabled = false;
@@ -422,10 +460,31 @@ i7j8k9l - refactor: 优化数据库查询性能
             }
         }
         
-        function showError(message) {
+        function showError(error) {
             const errorMsg = document.getElementById('errorMessage');
-            errorMsg.textContent = '❌ ' + message;
+            
+            let message, detail;
+            if (typeof error === 'string') {
+                message = error;
+                detail = '';
+            } else {
+                message = error.message || '未知错误';
+                detail = error.detail || '';
+            }
+            
+            let html = '<strong>❌ ' + escapeHtml(message) + '</strong>';
+            if (detail) {
+                html += '<br><small style="opacity: 0.9; margin-top: 8px; display: block;">' + escapeHtml(detail).replace(/\n/g, '<br>') + '</small>';
+            }
+            
+            errorMsg.innerHTML = html;
             errorMsg.classList.add('show');
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
         async function downloadReport() {
@@ -482,6 +541,7 @@ i7j8k9l - refactor: 优化数据库查询性能
                 generateReport();
             }
         });
+        
     </script>
 </body>
 </html>
