@@ -227,16 +227,31 @@ def safe_bool(value, default=False):
 
 
 def get_config():
-    """读取配置（优先级：环境变量 > 默认值）"""
-    api_key = os.getenv('DASHSCOPE_API_KEY', '').strip()
-    model = os.getenv('DASHSCOPE_MODEL', DEFAULT_MODEL).strip()
+    """读取配置（优先级：环境变量 > config.ini > 默认值）"""
+    # 读取 config.ini
+    config_parser = configparser.ConfigParser()
+    if CONFIG_FILE.exists():
+        config_parser.read(CONFIG_FILE, encoding='utf-8')
+    
+    # 确保有必要的配置节
+    if 'dashscope' not in config_parser:
+        config_parser['dashscope'] = {}
+    if 'flask' not in config_parser:
+        config_parser['flask'] = {}
+    
+    dashscope_cfg = config_parser['dashscope']
+    flask_cfg = config_parser['flask']
+    
+    # 优先级：环境变量 > config.ini > 默认值
+    api_key = os.getenv('DASHSCOPE_API_KEY', '').strip() or dashscope_cfg.get('api_key', '').strip()
+    model = os.getenv('DASHSCOPE_MODEL', '').strip() or dashscope_cfg.get('model', DEFAULT_MODEL).strip()
     
     return {
         'api_key': api_key,
         'model': model or DEFAULT_MODEL,
-        'debug': safe_bool(os.getenv('FLASK_DEBUG'), False),
-        'port': safe_int(os.getenv('FLASK_PORT'), DEFAULT_PORT),
-        'host': os.getenv('FLASK_HOST', DEFAULT_HOST).strip() or DEFAULT_HOST,
+        'debug': safe_bool(os.getenv('FLASK_DEBUG')) or safe_bool(flask_cfg.get('debug')),
+        'port': safe_int(os.getenv('FLASK_PORT')) or safe_int(flask_cfg.get('port'), DEFAULT_PORT),
+        'host': os.getenv('FLASK_HOST', '').strip() or flask_cfg.get('host', DEFAULT_HOST).strip() or DEFAULT_HOST,
     }
 
 
