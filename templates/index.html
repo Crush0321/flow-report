@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日报生成器 - 通义千问</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        .card-title {
+            font-size: 1.2rem;
+            color: #333;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .card-title .icon {
+            font-size: 1.4rem;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #555;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-group textarea {
+            min-height: 400px;
+            resize: vertical;
+            font-family: 'Consolas', 'Monaco', monospace;
+            line-height: 1.6;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 12px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(17, 153, 142, 0.4);
+        }
+        
+        .output-area {
+            min-height: 400px;
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+        }
+        
+        .output-area:empty::before {
+            content: '生成的日报将显示在这里...';
+            color: #999;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e0e0e0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+            display: none;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        .tips {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+            color: #1565c0;
+        }
+        
+        .footer {
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            margin-top: 30px;
+            font-size: 0.9rem;
+        }
+        
+        .api-link {
+            color: #ffd700;
+            text-decoration: none;
+        }
+        
+        .api-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📝 日报生成器</h1>
+            <p>基于通义千问大模型，智能生成工作日报</p>
+        </div>
+        
+        <div class="main-content">
+            <!-- 左侧：输入区域 -->
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">📥</span>
+                    输入代码提交日志
+                </div>
+                
+                <div class="tips">
+                    💡 提示：支持 Git/SVN 日志格式，直接粘贴即可
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="apiKey">通义千问 API Key <span id="keyStatus"></span></label>
+                        <input type="password" id="apiKey" placeholder="如已配置 config.ini 可留空">
+                    </div>
+                    <div class="form-group">
+                        <label for="model">模型选择</label>
+                        <select id="model">
+                            <option value="qwen-turbo">qwen-turbo (快)</option>
+                            <option value="qwen-plus">qwen-plus (均衡)</option>
+                            <option value="qwen-max">qwen-max (强)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="commitLogs">提交日志 *</label>
+                    <textarea id="commitLogs" placeholder="例如：
+a1b2c3d - feat: 完成用户登录功能开发
+e4f5g6h - fix: 修复订单列表分页bug
+i7j8k9l - refactor: 优化数据库查询性能
+
+直接粘贴你的Git日志即可..."></textarea>
+                </div>
+                
+                <button class="btn btn-primary" id="generateBtn" onclick="generateReport()">
+                    <span>✨</span> 生成日报
+                </button>
+                
+                <div class="error-message" id="errorMessage"></div>
+            </div>
+            
+            <!-- 右侧：输出区域 -->
+            <div class="card">
+                <div class="card-title">
+                    <span class="icon">📤</span>
+                    生成结果
+                </div>
+                
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>正在生成日报，请稍候...</p>
+                </div>
+                
+                <div class="output-area" id="output"></div>
+                
+                <div class="actions" id="actions" style="display: none;">
+                    <button class="btn btn-success" onclick="downloadReport()">
+                        <span>⬇️</span> 下载 Markdown
+                    </button>
+                    <button class="btn btn-secondary" onclick="copyToClipboard()">
+                        <span>📋</span> 复制内容
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>需要 API Key？前往 <a href="https://dashscope.aliyun.com/" target="_blank" class="api-link">阿里云 DashScope</a> 获取</p>
+        </div>
+    </div>
+    
+    <script>
+        let currentReport = '';
+        let hasConfigKey = false;
+        
+        // 页面加载时获取配置状态
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const response = await fetch('/config');
+                const config = await response.json();
+                hasConfigKey = config.has_api_key;
+                
+                const keyStatus = document.getElementById('keyStatus');
+                const apiKeyInput = document.getElementById('apiKey');
+                
+                if (hasConfigKey) {
+                    keyStatus.innerHTML = '<span style="color: #4caf50;">(已配置)</span>';
+                    apiKeyInput.placeholder = '已配置，可直接生成或输入其他Key覆盖';
+                }
+                
+                // 设置默认模型
+                if (config.default_model) {
+                    document.getElementById('model').value = config.default_model;
+                }
+            } catch (error) {
+                console.log('获取配置失败:', error);
+            }
+        });
+        
+        async function generateReport() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const commitLogs = document.getElementById('commitLogs').value.trim();
+            const model = document.getElementById('model').value;
+            const errorMsg = document.getElementById('errorMessage');
+            const loading = document.getElementById('loading');
+            const output = document.getElementById('output');
+            const actions = document.getElementById('actions');
+            const generateBtn = document.getElementById('generateBtn');
+            
+            // 验证
+            if (!apiKey && !hasConfigKey) {
+                showError('请输入通义千问 API Key 或在 config.ini 中配置');
+                return;
+            }
+            if (!commitLogs) {
+                showError('请输入代码提交日志');
+                return;
+            }
+            
+            // 清除错误
+            errorMsg.classList.remove('show');
+            
+            // 显示加载状态
+            loading.classList.add('show');
+            output.style.display = 'none';
+            actions.style.display = 'none';
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<span>⏳</span> 生成中...';
+            
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        api_key: apiKey,
+                        commit_logs: commitLogs,
+                        model: model
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentReport = data.report;
+                    output.textContent = currentReport;
+                    output.style.display = 'block';
+                    actions.style.display = 'flex';
+                } else {
+                    showError(data.error || '生成失败');
+                }
+            } catch (error) {
+                showError('请求失败：' + error.message);
+            } finally {
+                loading.classList.remove('show');
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = '<span>✨</span> 生成日报';
+            }
+        }
+        
+        function showError(message) {
+            const errorMsg = document.getElementById('errorMessage');
+            errorMsg.textContent = '❌ ' + message;
+            errorMsg.classList.add('show');
+        }
+        
+        async function downloadReport() {
+            if (!currentReport) return;
+            
+            try {
+                const response = await fetch('/download', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        content: currentReport
+                    })
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `日报_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.md`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    alert('下载失败');
+                }
+            } catch (error) {
+                alert('下载失败：' + error.message);
+            }
+        }
+        
+        async function copyToClipboard() {
+            if (!currentReport) return;
+            
+            try {
+                await navigator.clipboard.writeText(currentReport);
+                const btn = event.target.closest('.btn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<span>✅</span> 已复制';
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                }, 2000);
+            } catch (error) {
+                alert('复制失败：' + error.message);
+            }
+        }
+        
+        // 回车快捷键（Cmd/Ctrl + Enter）
+        document.getElementById('commitLogs').addEventListener('keydown', function(e) {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                generateReport();
+            }
+        });
+    </script>
+</body>
+</html>
