@@ -1,0 +1,11 @@
+# 通义千问 API 配置
+# 从 https://dashscope.aliyun.com/ 获取 API Key
+[dashscope]
+api_key = sk-your-api-key-here
+model = tongyi-xiaomi-analysis-pro
+
+# Flask 服务配置（可选）
+[flask]
+debug = false
+port = 5000
+host = 0.0.0.0
