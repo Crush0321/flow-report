@@ -8,8 +8,7 @@ import json
 import io
 import os
 import re
-import tempfile
-import uuid
+import configparser
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -207,6 +206,14 @@ def get_today():
         return datetime.now(timezone.utc).astimezone().strftime('%Y年%m月%d日')
     except Exception:
         return datetime.now().strftime('%Y年%m月%d日')
+
+
+def get_date_str(format='%Y%m%d'):
+    """获取日期字符串（用于文件名）"""
+    try:
+        return datetime.now(timezone.utc).astimezone().strftime(format)
+    except Exception:
+        return datetime.now().strftime(format)
 
 
 def safe_int(value, default=DEFAULT_PORT):
@@ -407,7 +414,7 @@ def call_dashscope_api(api_key, model, prompt_type, today, text_content='', code
         },
         'parameters': {
             'result_format': 'message',
-            'max_tokens': 2500
+            'max_tokens': 2000
         }
     }
     
@@ -611,12 +618,7 @@ def download_report():
             }
         }), 400
     
-    try:
-        today = datetime.now(timezone.utc).astimezone().strftime('%Y%m%d')
-    except Exception:
-        today = datetime.now().strftime('%Y%m%d')
-    
-    filename = f'日报_{today}.md'
+    filename = f'日报_{get_date_str()}.md'
     
     try:
         file_io = io.BytesIO(content.encode('utf-8'))
